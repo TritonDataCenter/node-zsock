@@ -9,7 +9,7 @@
   "author": "Mark Cavage <mcavage@gmail.com> (http://www.joyent.com)",
   "main": "lib/zsock.js",
   "scripts": {
-    "preinstall": "node-waf configure build",
+    "preinstall": "node-waf configure build"
   },
   "devDependencies": {
     "jshint": ">=0.1.9"
