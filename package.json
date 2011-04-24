@@ -13,7 +13,8 @@
   },
   "devDependencies": {
     "jshint": ">=0.1.9",
-    "nodeunit": ">=0.5.1"
+    "nodeunit": ">=0.5.1",
+    "node-uuid": "1.1.0"
   },
   "engines": {
     "node": ">=0.4"
