@@ -148,8 +148,8 @@ static int contract_abandon_id(ctid_t ctid) {
 }
 
 static ssize_t read_fd(int fd, void *ptr, size_t nbytes, int *recvfd) {
-  struct msghdr msg = {0};
-  struct iovec iov[1] = {0};
+  struct msghdr msg;
+  struct iovec iov[1];
   ssize_t n = -1;
   union {
     struct cmsghdr cm;
@@ -189,8 +189,8 @@ static ssize_t read_fd(int fd, void *ptr, size_t nbytes, int *recvfd) {
 }
 
 static ssize_t write_fd(int fd, void *ptr, size_t nbytes, int sendfd) {
-  struct msghdr msg = {0};
-  struct iovec iov[1] = {0};
+  struct msghdr msg;
+  struct iovec iov[1];
   union {
     struct cmsghdr cm;
     char control[CMSG_SPACE(sizeof(int))];
