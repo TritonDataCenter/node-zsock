@@ -32,6 +32,9 @@ def configure(conf):
 
   conf.env.append_value('CXXFLAGS', ['-D_FILE_OFFSET_BITS=64',
                                      '-D_LARGEFILE_SOURCE',
+                                     '-D_REENTRANT',
+                                     '-D_POSIX_PTHREAD_SEMANTICS',
+                                     '-std=c++98',
                                      '-Wall',
                                      '-fPIC',
                                      '-Werror'])

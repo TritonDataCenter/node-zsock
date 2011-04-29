@@ -1,8 +1,11 @@
 // Copyright 2011 Mark Cavage <mcavage@gmail.com> All rights reserved.
+#include <alloca.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <libcontract.h>
 #include <libzonecfg.h>
+#include <pthread.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/contract/process.h>
@@ -12,12 +15,17 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <exception>
 
 #include <node.h>
 #include <v8.h>
+
+static const int BUF_SZ = 27;
+static const char *PREFIX = "%s GMT T(%d) %s: ";
+static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
 // Node Macros require these
 using v8::Persistent;
@@ -55,6 +63,35 @@ using v8::String;
     RETURN_EXCEPTION("argument " #I " must be a function");             \
   v8::Local<v8::Function> VAR = v8::Local<v8::Function>::Cast(ARGS[I]);
 
+
+static void chomp(char *s) {
+  while (*s && *s != '\n' && *s != '\r')
+    s++;
+  *s = 0;
+}
+
+static void debug(const char *fmt, ...) {
+  char *buf = NULL;
+  struct tm tm = {};
+  time_t now;
+  va_list alist;
+
+  if (getenv("ZSOCK_DEBUG") == NULL) return;
+
+  if ((buf = (char *)alloca(BUF_SZ)) == NULL)
+    return;
+
+  now = time(0);
+  gmtime_r(&now, &tm);
+  asctime_r(&tm, buf);
+  chomp(buf);
+
+  va_start(alist, fmt);
+
+  fprintf(stderr, PREFIX, buf, pthread_self(), "DEBUG");
+  vfprintf(stderr, fmt, alist);
+  va_end(alist);
+}
 
 static int init_template(void) {
   int fd = 0;
@@ -217,6 +254,7 @@ static ssize_t write_fd(int fd, void *ptr, size_t nbytes, int sendfd) {
 static int zsocket(zoneid_t zoneid, const char *path) {
   char c = 0;
   ctid_t ct = -1;
+  int _errno = 0;
   int pid = 0;
   int sock_fd = 0;
   int sockfd[2] = {0};
@@ -233,19 +271,28 @@ static int zsocket(zoneid_t zoneid, const char *path) {
     return (-1);
   }
 
+  pthread_mutex_lock(&lock);
+
   if ((tmpl_fd = init_template()) < 0) {
+    pthread_mutex_unlock(&lock);
     return (-1);
   }
 
   if (socketpair(AF_LOCAL, SOCK_STREAM, 0, sockfd) != 0) {
+    (void) ct_tmpl_clear(tmpl_fd);
+    pthread_mutex_unlock(&lock);
     return (-1);
   }
 
   pid = fork();
+  debug("fork returned: %d\n", pid);
   if (pid < 0) {
-    int _errno = errno;
+    _errno = errno;
     (void) ct_tmpl_clear(tmpl_fd);
+    close(sockfd[0]);
+    close(sockfd[1]);
     errno = _errno;
+    pthread_mutex_unlock(&lock);
     return (-1);
   }
 
@@ -255,28 +302,35 @@ static int zsocket(zoneid_t zoneid, const char *path) {
     (void) close(sockfd[0]);
 
     if (zone_enter(zoneid) != 0) {
+      debug("CHILD: zone_enter(%d) => %s\n", zoneid, strerror(errno));
       if (errno == EINVAL) {
         _exit(0);
       }
-      _exit(errno);
+      _exit(1);
     }
 
+    debug("CHILD: zone_enter(%d) => %d\n", zoneid, 0);
     (void) unlink(path);
     sock_fd = socket(PF_UNIX, SOCK_STREAM, 0);
     if (sock_fd < 0) {
-      _exit(errno);
+      debug("CHILD: socket => %d\n", errno);
+      _exit(2);
     }
     addr.sun_family = AF_UNIX;
     addr_len = sizeof(addr.sun_family) +
                snprintf(addr.sun_path, sizeof(addr.sun_path), path);
 
     if (bind(sock_fd, (struct sockaddr *) &addr, addr_len) != 0) {
-      _exit(errno);
+      debug("CHILD: bind => %d\n", errno);
+      _exit(3);
     }
 
     if (write_fd(sockfd[1], (void *)"", 1, sock_fd) < 0) {
-      _exit(errno);
+      debug("CHILD: write_fd => %d\n", errno);
+      _exit(4);
     }
+
+    debug("CHILD: write_fd => %d\n", errno);
     _exit(0);
   }
 
@@ -287,23 +341,32 @@ static int zsocket(zoneid_t zoneid, const char *path) {
   (void) close(tmpl_fd);
   (void) contract_abandon_id(ct);
   (void) close(sockfd[1]);
-
-  while ((waitpid(pid, &stat, 0) != pid) && errno != ECHILD);
+  debug("PARENT: waitforpid(%d)\n", pid);
+  while ((waitpid(pid, &stat, 0) != pid) && errno != ECHILD) ;
 
   if (WIFEXITED(stat) == 0) {
-    errno = ECHILD;
+    debug("PARENT: Child didn't exit\n");
+    _errno = ECHILD;
     sock_fd = -1;
   } else {
     stat = WEXITSTATUS(stat);
+    debug("PARENT: Child exit status %d\n", stat);
     if (stat == 0) {
       read_fd(sockfd[0], &c, 1, &sock_fd);
     } else {
-      errno = stat;
+      _errno = stat;
       sock_fd = -1;
     }
   }
 
   close(sockfd[0]);
+  pthread_mutex_unlock(&lock);
+  if (sock_fd < 0) {
+    errno = _errno;
+  } else {
+    errno = 0;
+  }
+  debug("zsocket returning fd=%d, errno=%d\n", sock_fd, errno);
   return (sock_fd);
 }
 
@@ -331,13 +394,13 @@ class eio_baton_t {
     _fd = -1;
   }
 
-  void setErrno(const char *syscall, int errno) {
+  void setErrno(const char *syscall, int errorno) {
     if (_syscall != NULL) {
       free(_syscall);
     }
     _syscall = strdup(syscall);
     _fd = -1;
-    _errno = errno;
+    _errno = errorno;
   }
 
   char *_path;
