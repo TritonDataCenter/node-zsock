@@ -1,7 +1,7 @@
 {
   "name": "zsock",
   "description": "A small library for opening Unix Domain Sockets in Solaris Zones.",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "repository": {
     "type": "git",
     "url": "git://github.com/mcavage/node-zsock.git"

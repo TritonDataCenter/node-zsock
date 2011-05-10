@@ -1,4 +1,5 @@
 // Copyright 2011 Mark Cavage <mcavage@gmail.com> All rights reserved.
+#ifdef SunOS
 #include <alloca.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -19,10 +20,12 @@
 #include <unistd.h>
 
 #include <exception>
+#endif
 
 #include <node.h>
 #include <v8.h>
 
+#ifdef SunOS
 static const int BUF_SZ = 27;
 static const char *PREFIX = "%s GMT T(%d) %s: ";
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
@@ -425,7 +428,12 @@ static int EIO_ZSocket(eio_req *req) {
     baton->setErrno("getzoneidbyname", errno);
     return 0;
   }
-  int sock_fd = zsocket(zoneid, baton->_path);
+  int sock_fd = -1;
+  int attempts = 1;
+  do {
+    // This call suffers from EINTR, so just retry
+    sock_fd = zsocket(zoneid, baton->_path);
+	} while (attempts++ < 3 && sock_fd < 0);
   if (sock_fd < 0) {
     baton->setErrno("zsocket", errno);
     return 0;
@@ -499,11 +507,12 @@ static v8::Handle<v8::Value> ZSocket(const v8::Arguments& args) {
 
   return v8::Undefined();
 }
-
+#endif
 extern "C" {
   void init(v8::Handle<v8::Object> target) {
     v8::HandleScope scope;
-
+#ifdef SunOS
     NODE_SET_METHOD(target, "zsocket", ZSocket);
+#endif
   }
 }

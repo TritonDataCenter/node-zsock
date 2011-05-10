@@ -34,6 +34,7 @@ def configure(conf):
                                      '-D_LARGEFILE_SOURCE',
                                      '-D_REENTRANT',
                                      '-D_POSIX_PTHREAD_SEMANTICS',
+																		 '-D' + os.uname()[0],
                                      '-std=c++98',
                                      '-Wall',
                                      '-fPIC',
@@ -48,7 +49,11 @@ def build(bld):
   obj.target = 'zsock_bindings'
   obj.source = './src/zsock.cc'
   obj.name = "node-zsock"
-  obj.lib = ["contract", "socket", "nsl", "pthread"]
+  obj.lib = ["pthread"]
+  if os.uname()[0] == "SunOS":
+    obj.lib.append("contract")
+    obj.lib.append("nsl")
+    obj.lib.append("socket")
 
 def test(ctx):
   system('nodeunit ./tst')
