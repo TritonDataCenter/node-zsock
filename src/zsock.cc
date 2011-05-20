@@ -321,6 +321,7 @@ static int zsocket(zoneid_t zoneid, const char *path) {
       debug("CHILD: socket => %d\n", errno);
       _exit(2);
     }
+    fcntl(sock_fd, F_SETFL, O_NONBLOCK);
     addr.sun_family = AF_UNIX;
     addr_len = sizeof(addr.sun_family) +
                snprintf(addr.sun_path, sizeof(addr.sun_path), path);
