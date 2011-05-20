@@ -246,6 +246,8 @@ static ssize_t write_fd(int fd, void *ptr, size_t nbytes, int sendfd) {
   cmptr->cmsg_type = SCM_RIGHTS;
   *(reinterpret_cast<int *>(CMSG_DATA(cmptr))) = sendfd;
 
+  msg.msg_name = NULL;
+  msg.msg_namelen = 0;
   iov[0].iov_base = ptr;
   iov[0].iov_len = nbytes;
   msg.msg_iov = iov;
