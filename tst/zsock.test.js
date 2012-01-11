@@ -8,7 +8,7 @@ var zsock = require('../lib/zsock');
 /**
  * In order to run these tests, you must:
  * 1) Be root
- * 2) have a zone called foo
+ * 2) have a zone called foo (or set TEST_ZONE to the zone name)
  * 3) Have configure your zones to live under /zones
  *
  * Basically, it's probably easier if you just trust me
@@ -17,7 +17,7 @@ var zsock = require('../lib/zsock');
 module.exports = testCase({
 
   setUp: function(callback) {
-    this.zone = 'foo'; // Replace with whatever zone you have!
+    this.zone = process.env.TEST_ZONE || 'foo';
     this.socketPath = '/tmp/.' + uuid();
     callback();
   },
@@ -88,10 +88,11 @@ module.exports = testCase({
 
   success: function(test) {
     var self = this;
-    test.expect(2);
+    test.expect(3);
+    test.equal(process.getuid(), 0, "must be root to run this test");
 
     var _cb = function(err, fd) {
-      test.ok(!err);
+      test.ok(!err, err + " (must have zone named 'foo' or set TEST_ZONE envvar)");
       test.ok(fd);
       test.done();
     };
