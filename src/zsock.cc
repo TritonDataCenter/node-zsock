@@ -423,13 +423,13 @@ class eio_baton_t {
   eio_baton_t &operator=(const eio_baton_t &);
 };
 
-static int EIO_ZSocket(eio_req *req) {
+static void EIO_ZSocket(eio_req *req) {
   eio_baton_t *baton = static_cast<eio_baton_t *>(req->data);
 
   zoneid_t zoneid = getzoneidbyname(baton->_zone);
   if (zoneid < 0) {
     baton->setErrno("getzoneidbyname", errno);
-    return 0;
+    return;
   }
   int sock_fd = -1;
   int attempts = 1;
@@ -439,17 +439,17 @@ static int EIO_ZSocket(eio_req *req) {
 	} while (attempts++ < 3 && sock_fd < 0);
   if (sock_fd < 0) {
     baton->setErrno("zsocket", errno);
-    return 0;
+    return;
   }
 
   if (listen(sock_fd, baton->_backlog) != 0) {
     baton->setErrno("listen", errno);
-    return 0;
+    return;
   }
 
   baton->_fd = sock_fd;
 
-  return 0;
+  return;
 }
 
 static int EIO_After(eio_req *req) {
