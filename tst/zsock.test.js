@@ -1,5 +1,6 @@
 // Copyright 2011 Mark Cavage <mcavage@gmail.com> All rights reserved.
 var fs = require('fs');
+var net = require('net');
 var testCase = require('nodeunit').testCase;
 var uuid = require('node-uuid');
 
@@ -94,7 +95,11 @@ module.exports = testCase({
     var _cb = function(err, fd) {
       test.ok(!err, err + " (must have zone named 'foo' or set TEST_ZONE envvar)");
       test.ok(fd);
-      test.done();
+      var server = net.createServer();
+      server.listenFD(fd, function() {
+        server.close();
+        test.done();
+      });  
     };
 
     zsock.createZoneSocket({zone: self.zone, path: self.socketPath}, _cb);

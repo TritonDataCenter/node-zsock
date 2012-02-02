@@ -5,7 +5,7 @@ var net = require('net');
 var zsock = require('../lib/zsock');
 
 var zopts = {
-  zone: 'foo',
+  zone: process.env.ZSOCK_ZONE,
   path: '/tmp/.zsock-demo'
 };
 
@@ -24,6 +24,12 @@ zsock.createZoneSocket(zopts, function(err, fd) {
     }
   });
 
-  server.listenFD(fd);
+  server.listenFD(fd, function() {
+    console.log('Listening in zone %s on %s', zopts.zone, zopts.path);
+    console.log('To test, run the following commands\n');
+    console.log('\nzlogin %s', zopts.zone);
+    console.log('\npkgin -y install gnetcat');
+    console.log('\necho -n -e "foo\\r\\n" | nc -U %s', zopts.path);
+  });
 });
 
