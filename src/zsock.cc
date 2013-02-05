@@ -423,7 +423,7 @@ class eio_baton_t {
   eio_baton_t &operator=(const eio_baton_t &);
 };
 
-static void EIO_ZSocket(eio_req *req) {
+static void EIO_ZSocket(uv_work_t *req) {
   eio_baton_t *baton = static_cast<eio_baton_t *>(req->data);
 
   zoneid_t zoneid = getzoneidbyname(baton->_zone);
@@ -452,10 +452,10 @@ static void EIO_ZSocket(eio_req *req) {
   return;
 }
 
-static int EIO_After(eio_req *req) {
+static void EIO_After(uv_work_t *req) {
   v8::HandleScope scope;
   eio_baton_t *baton = static_cast<eio_baton_t *>(req->data);
-  ev_unref(EV_DEFAULT_UC);
+  delete (req);
 
   int argc = 1;
   v8::Local<v8::Value> argv[2];
@@ -477,8 +477,6 @@ static int EIO_After(eio_req *req) {
   }
 
   delete baton;
-
-  return 0;
 }
 
 static v8::Handle<v8::Value> ZSocket(const v8::Arguments& args) {
@@ -505,8 +503,9 @@ static v8::Handle<v8::Value> ZSocket(const v8::Arguments& args) {
   baton->_backlog = backlog;
   baton->_callback = v8::Persistent<v8::Function>::New(callback);
 
-  eio_custom(EIO_ZSocket, EIO_PRI_DEFAULT, EIO_After, baton);
-  ev_ref(EV_DEFAULT_UC);
+  uv_work_t *req = new uv_work_t;
+  req->data = baton;
+  uv_queue_work(uv_default_loop(), req, EIO_ZSocket, EIO_After);
 
   return v8::Undefined();
 }
