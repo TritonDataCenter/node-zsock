@@ -265,6 +265,7 @@ static int zsocket(zoneid_t zoneid, const char *path) {
   int sockfd[2] = {0};
   int stat = 0;
   int tmpl_fd = 0;
+  int flags;
   struct sockaddr_un addr = {0};
   size_t addr_len = 0;
 
@@ -370,6 +371,11 @@ static int zsocket(zoneid_t zoneid, const char *path) {
   if (sock_fd < 0) {
     errno = _errno;
   } else {
+    if ((flags = fcntl(sock_fd, F_GETFD)) != -1) {
+      flags |= FD_CLOEXEC;
+      (void) fcntl(sock_fd, F_SETFD, flags);
+    }
+
     errno = 0;
   }
   debug("zsocket returning fd=%d, errno=%d\n", sock_fd, errno);
@@ -436,7 +442,7 @@ static void EIO_ZSocket(uv_work_t *req) {
   do {
     // This call suffers from EINTR, so just retry
     sock_fd = zsocket(zoneid, baton->_path);
-	} while (attempts++ < 3 && sock_fd < 0);
+  } while (attempts++ < 3 && sock_fd < 0);
   if (sock_fd < 0) {
     baton->setErrno("zsocket", errno);
     return;
