@@ -1,4 +1,5 @@
 // Copyright 2011 Mark Cavage <mcavage@gmail.com> All rights reserved.
+// Copyright 2021 Joyetn, Inc.
 #ifdef SunOS
 #include <alloca.h>
 #include <errno.h>
@@ -75,7 +76,7 @@ static void chomp(char *s) {
 
 static void debug(const char *fmt, ...) {
   char *buf = NULL;
-  struct tm tm = {};
+  struct tm tm;
   time_t now;
   va_list alist;
 
@@ -429,7 +430,7 @@ class eio_baton_t {
   eio_baton_t &operator=(const eio_baton_t &);
 };
 
-static void EIO_ZSocket(uv_work_t *req) {
+static void uv_ZSocket(uv_work_t *req) {
   eio_baton_t *baton = static_cast<eio_baton_t *>(req->data);
 
   zoneid_t zoneid = getzoneidbyname(baton->_zone);
@@ -458,7 +459,7 @@ static void EIO_ZSocket(uv_work_t *req) {
   return;
 }
 
-static void EIO_After(uv_work_t *req) {
+static void uv_After(uv_work_t *req, int status) {
   v8::HandleScope scope;
   eio_baton_t *baton = static_cast<eio_baton_t *>(req->data);
   delete (req);
@@ -511,16 +512,17 @@ static v8::Handle<v8::Value> ZSocket(const v8::Arguments& args) {
 
   uv_work_t *req = new uv_work_t;
   req->data = baton;
-  uv_queue_work(uv_default_loop(), req, EIO_ZSocket, EIO_After);
+  uv_queue_work(uv_default_loop(), req, uv_ZSocket, uv_After);
 
   return v8::Undefined();
 }
 #endif
-extern "C" {
-  void init(v8::Handle<v8::Object> target) {
-    v8::HandleScope scope;
+
+void Init(v8::Handle<v8::Object> exports, v8::Handle<v8::Object> module) {
 #ifdef SunOS
-    NODE_SET_METHOD(target, "zsocket", ZSocket);
+       exports->Set(v8::String::NewSymbol("zsocket"),
+                     v8::FunctionTemplate::New(ZSocket)->GetFunction());
 #endif
-  }
 }
+
+NODE_MODULE(zsock, Init)
