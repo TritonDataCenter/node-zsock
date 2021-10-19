@@ -1,6 +1,5 @@
 // Copyright 2011 Mark Cavage <mcavage@gmail.com> All rights reserved.
-// Copyright 2021 Joyetn, Inc.
-#ifdef SunOS
+// Copyright 2021 Joyent, Inc.
 #include <alloca.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -21,12 +20,10 @@
 #include <unistd.h>
 
 #include <exception>
-#endif
 
 #include <node.h>
 #include <v8.h>
 
-#ifdef SunOS
 static const int BUF_SZ = 27;
 static const char *PREFIX = "%s GMT T(%d) %s: ";
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
@@ -516,13 +513,10 @@ static v8::Handle<v8::Value> ZSocket(const v8::Arguments& args) {
 
   return v8::Undefined();
 }
-#endif
 
 void Init(v8::Handle<v8::Object> exports, v8::Handle<v8::Object> module) {
-#ifdef SunOS
        exports->Set(v8::String::NewSymbol("zsocket"),
                      v8::FunctionTemplate::New(ZSocket)->GetFunction());
-#endif
 }
 
 NODE_MODULE(zsock, Init)
