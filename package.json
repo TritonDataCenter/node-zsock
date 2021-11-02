@@ -1,10 +1,10 @@
 {
         "name": "zsock",
         "description": "A small library for opening Unix Domain Sockets in Solaris Zones.",
-        "version": "2.0.0",
+        "version": "2.0.1",
         "repository": {
                 "type": "git",
-                "url": "git://github.com/joyent/node-zsock.git"
+                "url": "https://github.com/joyent/node-zsock.git"
         },
         "author": "Joyent (https://www.joyent.com)",
         "main": "lib/zsock.js",
